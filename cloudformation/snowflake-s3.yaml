@@ -1,0 +1,64 @@
+Description: Setup AWS resources for integration with Snowflake
+
+Parameters:
+  
+  pSnowflakeBucket:
+    Description: Name of the S3 bucket used in Snowflake
+    Type: String
+    Default: snowflake-loading-s3
+  
+  pS3SnowflakePolicy:
+    Description: Name of the policy attached to the role used to connect S3 with Snowflake
+    Type: String
+    Default: snowflake-s3-policy
+  
+  pS3SnowflakeRole:
+    Description: Name of the role used to connect S3 with Snowflake
+    Type: String
+    Default: snowflake-s3-role
+
+Resources:
+  rSnowflakeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join [-, [!Ref pSnowflakeBucket, !Ref AWS::AccountId]]
+  
+  rS3SnowflakeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref pS3SnowflakeRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Join
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref AWS::AccountId
+                  - ':root'
+            Action:
+              - 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': dummy-value
+      Policies:
+        - PolicyName: !Ref pS3SnowflakePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetBucketLocation'
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:ListBucket'
+                  - 's3:PutObject'
+                  - 's3:DeleteObject'
+                Resource:
+                  - !Sub
+                    - 'arn:aws:s3:::${s3_bucket}-${AWS::AccountId}'
+                    - s3_bucket: !Ref pSnowflakeBucket
+                  - !Sub
+                    - 'arn:aws:s3:::${s3_bucket}-${AWS::AccountId}/*'
+                    - s3_bucket: !Ref pSnowflakeBucket
